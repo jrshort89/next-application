@@ -10,5 +10,15 @@ services:
       - psql:/var/lib/postgresql/data
     ports:
       - 5432:5432
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: docker-next
+    ports:
+      - '3000:3000'
+    volumes:
+      - .:/app
+      - /app/node_modules
 volumes:
   psql:

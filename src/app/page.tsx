@@ -1,91 +1,102 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
+import { AdvocateData } from "./api/advocates/types";
+import Footer from "./pagination/footer";
 
 export default function Home() {
-  const [advocates, setAdvocates] = useState([]);
-  const [filteredAdvocates, setFilteredAdvocates] = useState([]);
+  const [advocates, setAdvocates] = useState<AdvocateData[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const limit = 2; // Number of items per page
+
+  const fetchAdvocates = useCallback(() => {
+    fetch(`/api/advocates?page=${page}&limit=${limit}&term=${searchTerm}`)
+      .then((response) => response.json())
+      .then((jsonResponse) => {
+        setAdvocates(jsonResponse.data);
+        setTotalPages(jsonResponse.totalPages);
+      });
+  }, [page, searchTerm]);
 
   useEffect(() => {
-    console.log("fetching advocates...");
-    fetch("/api/advocates").then((response) => {
-      response.json().then((jsonResponse) => {
-        setAdvocates(jsonResponse.data);
-        setFilteredAdvocates(jsonResponse.data);
-      });
-    });
-  }, []);
+    const debounce = setTimeout(() => {
+      fetchAdvocates();
+    }, 300); // Debounce API calls
 
-  const onChange = (e) => {
-    const searchTerm = e.target.value;
+    return () => clearTimeout(debounce);
+  }, [fetchAdvocates]);
 
-    document.getElementById("search-term").innerHTML = searchTerm;
-
-    console.log("filtering advocates...");
-    const filteredAdvocates = advocates.filter((advocate) => {
-      return (
-        advocate.firstName.includes(searchTerm) ||
-        advocate.lastName.includes(searchTerm) ||
-        advocate.city.includes(searchTerm) ||
-        advocate.degree.includes(searchTerm) ||
-        advocate.specialties.includes(searchTerm) ||
-        advocate.yearsOfExperience.includes(searchTerm)
-      );
-    });
-
-    setFilteredAdvocates(filteredAdvocates);
-  };
-
-  const onClick = () => {
-    console.log(advocates);
-    setFilteredAdvocates(advocates);
+  const onChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(e.target.value);
+    setPage(1);
   };
 
   return (
-    <main style={{ margin: "24px" }}>
-      <h1>Solace Advocates</h1>
-      <br />
-      <br />
-      <div>
-        <p>Search</p>
-        <p>
-          Searching for: <span id="search-term"></span>
-        </p>
-        <input style={{ border: "1px solid black" }} onChange={onChange} />
-        <button onClick={onClick}>Reset Search</button>
+    <main className="m-6">
+      <h1 className="text-2xl font-bold">Solace Advocates</h1>
+
+      {/* 🔹 Search Bar */}
+      <div className="mt-4">
+        <label className="block text-sm font-medium">Search:</label>
+        <input
+          className="border p-2 w-full"
+          value={searchTerm}
+          onChange={onChange}
+          placeholder="Search advocates..."
+        />
       </div>
-      <br />
-      <br />
-      <table>
+
+      {/* 🔹 Advocate Table */}
+      <table className="table-fixed w-full overflow-hidden mt-6 border-collapse border">
         <thead>
-          <th>First Name</th>
-          <th>Last Name</th>
-          <th>City</th>
-          <th>Degree</th>
-          <th>Specialties</th>
-          <th>Years of Experience</th>
-          <th>Phone Number</th>
+          <tr className="bg-gray-200">
+            <th className="p-2 border">First Name</th>
+            <th className="p-2 border">Last Name</th>
+            <th className="p-2 border">City</th>
+            <th className="p-2 border">Degree</th>
+            <th className="p-2 border">Specialties</th>
+            <th className="p-2 border">Years of Experience</th>
+            <th className="p-2 border">Phone Number</th>
+          </tr>
         </thead>
         <tbody>
-          {filteredAdvocates.map((advocate) => {
-            return (
-              <tr>
-                <td>{advocate.firstName}</td>
-                <td>{advocate.lastName}</td>
-                <td>{advocate.city}</td>
-                <td>{advocate.degree}</td>
-                <td>
-                  {advocate.specialties.map((s) => (
-                    <div>{s}</div>
-                  ))}
-                </td>
-                <td>{advocate.yearsOfExperience}</td>
-                <td>{advocate.phoneNumber}</td>
-              </tr>
-            );
-          })}
+          {advocates.length > 0 ? (
+            advocates.map((advocate) => <AdvocateRow key={advocate.id} advocate={advocate} />)
+          ) : (
+            <tr>
+              <td colSpan={7} className="text-center p-4">
+                No results found
+              </td>
+            </tr>
+          )}
         </tbody>
       </table>
+
+      {/* 🔹 Pagination Footer */}
+      <Footer page={page} setPage={setPage} totalPages={totalPages} />
     </main>
   );
 }
+
+// 🔹 Extracted AdvocateRow Component
+const AdvocateRow = ({ advocate }: { advocate: AdvocateData }) => (
+  <tr className="border">
+    <td className="p-2 border">{advocate.firstName}</td>
+    <td className="p-2 border">{advocate.lastName}</td>
+    <td className="p-2 border">{advocate.city}</td>
+    <td className="p-2 border">{advocate.degree}</td>
+    <td className="p-2 border">
+      <div className="relative group h-32 overflow-auto [&::-webkit-scrollbar]:hidden scrollbar-none">
+        {advocate.specialties.map((s, index) => (
+          <div key={index} className="bg-gray-100 p-1">
+            {s}
+          </div>
+        ))}
+      </div>
+    </td>
+    <td className="p-2 border">{advocate.yearsOfExperience}</td>
+    <td className="p-2 border">{advocate.phoneNumber}</td>
+  </tr>
+);

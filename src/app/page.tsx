@@ -2,30 +2,39 @@
 
 import { useEffect, useState } from "react";
 import { AdvocateData } from "./api/advocates/types";
+import Footer from "./pagination/footer";
 
 export default function Home() {
   const [advocates, setAdvocates] = useState<AdvocateData[]>([]);
-  const [filteredAdvocates, setFilteredAdvocates] = useState<AdvocateData[]>([]);
+  const [filteredAdvocates, setFilteredAdvocates] = useState<AdvocateData[]>(
+    []
+  );
+  const [searchTerm, setSearchTerm] = useState("");
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const limit = 2; // Number of items per page
+
+  const handleSearch = () => {
+    fetch(`/api/advocates?page=${page}&limit=${limit}&term=${searchTerm}`).then(
+      (response) => {
+        response.json().then((jsonResponse) => {
+          setAdvocates(jsonResponse.data);
+          setFilteredAdvocates(jsonResponse.data);
+          setTotalPages(jsonResponse.totalPages);
+        });
+      }
+    );
+  };
 
   useEffect(() => {
-    fetch("/api/advocates").then((response) => {
-      response.json().then((jsonResponse) => {
-        setAdvocates(jsonResponse.data);
-        setFilteredAdvocates(jsonResponse.data);
-      });
-    });
-  }, []);
+    handleSearch();
+  }, [page]);
 
-  const onChange = (e: { target: { value: string; }; }) => {
-    const filteredAdvocates = advocates.filter((advocate) => {
-      const advocatePropertiesAsLowerCaseString = Object.values(advocate).map((a) => a.toString().toLowerCase());
-      const searchTermAsLowerCaseString = e.target.value.toLowerCase();
-
-      return (
-        advocatePropertiesAsLowerCaseString.some((v) => v?.includes(searchTermAsLowerCaseString))
-      );
-    });
-    setFilteredAdvocates(filteredAdvocates);
+  const onChange = (e: { target: { value: string } }) => {
+    const term = e.target.value;
+    setSearchTerm(term);
+    setPage(1);
+    handleSearch();
   };
 
   const onClick = () => {
@@ -47,7 +56,7 @@ export default function Home() {
       </div>
       <br />
       <br />
-      <table>
+      <table className="table-fixed w-full overflow-hidden">
         <thead>
           <tr>
             <th>First Name</th>
@@ -68,9 +77,11 @@ export default function Home() {
                 <td>{advocate.city}</td>
                 <td>{advocate.degree}</td>
                 <td>
-                  {advocate.specialties.map((s) => (
-                    <div>{s}</div>
-                  ))}
+                  <div className="relative group h-32 overflow-auto [&::-webkit-scrollbar]:hidden scrollbar-none">
+                    {advocate.specialties.map((s) => (
+                      <div className="bg-w">{s}</div>
+                    ))}
+                  </div>
                 </td>
                 <td>{advocate.yearsOfExperience}</td>
                 <td>{advocate.phoneNumber}</td>
@@ -79,6 +90,7 @@ export default function Home() {
           })}
         </tbody>
       </table>
+      <Footer page={page} setPage={setPage} totalPages={totalPages} />
     </main>
   );
 }
